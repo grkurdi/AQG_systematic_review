@@ -1,0 +1,1301 @@
+---
+title: "aqg_sys_rev"
+author: "Ghader Kurdi"
+date: "8 September 2018"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+# Instruction
+# to run all analyses
+- Change the variable "dir" (can be found in code chunck "setup")
+- Click on "Knit"
+
+# to run a specific analysis
+- Change the variable "dir" (can be found in code chunck "setup")
+- run the code chunck "functions"
+- run the code chunck "global_variables"
+- run required chuncks specifed under "requirement" 
+- run the analysis of intrest 
+
+```{r setup, include=FALSE}
+dir <- ""
+```
+
+```{r functions, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+library(plyr)
+library(bib2df) # https://cran.r-project.org/web/packages/bib2df/vignettes/bib2df.html
+library(dplyr)
+library(ggplot2)
+library(tidyr)
+library(stringr)
+library(irr)
+library(stringr)
+require("tm")
+
+clean <- function(df){
+df <- as.data.frame(df)
+df <- df  %>% mutate_all(funs(sub("\\.$", "",.)))
+# } not working
+df <- df  %>% mutate_all(funs(gsub("[[:punct:]]", "",.)))
+df <- df  %>% mutate_all(funs(gsub(",", "",.)))
+df <- df  %>% mutate_all(funs(gsub("-", " ",.)))
+df <- df  %>% mutate_all(funs(gsub(":", "",.)))
+df <- df  %>% mutate_all(funs(gsub("\\s+", " ",.)))
+df <- df  %>% mutate_all(funs(tolower))
+df <- df  %>% mutate_all(funs(trimws(.,which = "both")))
+return(df)
+}
+
+remove_duplicates <- function(df){
+file_no_duplic <-
+  df %>%
+  dplyr::group_by(title) %>%
+  dplyr::summarize(n = n())
+return(file_no_duplic)
+}
+
+add_ids <- function(df, x){
+file_with_id <- merge(df, bib_ref_names, by.x = x, by.y = "TITLE", all.x = TRUE)
+return(file_with_id)
+}
+
+add_title <- function(df, x){
+file_with_id <- merge(df, bib_ref_names, by.x = x, by.y = "BIBTEXKEY", all.x = TRUE)
+return(file_with_id)
+}
+
+catch_na_ids <- function(df){
+no_id <-
+  df %>%
+  dplyr::filter(is.na(BIBTEXKEY))
+#write.csv(no_id,'check_this.csv')
+return(no_id)
+}
+
+# for thoese file that automatic assignment of ids did not work
+add_na_id <- function(df){
+  # add if the file is snowballing
+file_add_id <- df
+file_add_id$BIBTEXKEY[file_add_id$title == "outcome based predictive analysis of automatic question paper using data mining"] <- "bindra2017outcome"
+file_add_id$BIBTEXKEY[file_add_id$title == "vqa inverse visual question answering"] <- "antol2015vqa"
+file_add_id$BIBTEXKEY[file_add_id$title == "web authoriser tool to build assessments using wikipedia articles"] <- "adithya2017web"
+file_add_id$BIBTEXKEY[file_add_id$title == "evaluation of a question generation approach using open linked data for supporting argumentation"] <- "Le2015evaluation"
+file_add_id$BIBTEXKEY[file_add_id$title == "automatically generate quizzes using text embedding"] <- "asian12017"
+file_add_id$BIBTEXKEY[file_add_id$title == "rebial un juego de preguntas generadas a partir de la dbpedia"] <- "nf"
+file_add_id$BIBTEXKEY[file_add_id$title == "automatic generation of questions from product manual sentences"] <- "asian2018"
+file_add_id$BIBTEXKEY[file_add_id$title == "an interactive question raising system for recalling personal photos"] <- "wu2017"
+file_add_id$BIBTEXKEY[file_add_id$title == "active learning method through question generation question and answer"] <- "nf"
+file_add_id$BIBTEXKEY[file_add_id$title == "lod based semantically enhanced open learning space raise engagement for historical deep consideration"] <- "nf"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "the prospect of open online e learning system based on the free culture movement development of the yoututors as an auto assignment generator by utilizing creative commons contents online"] <- "nakajima2015prospect"
+
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "outcome based predictive analysis of automatic question paper using data mining"] <- "bindra2017outcome"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "vqa inverse visual question answering"] <- "antol2015vqa"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "web authoriser tool to build assessments using wikipedia articles"] <- "adithya2017web"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "evaluation of a question generation approach using open linked data for supporting argumentation"] <- "Le2015evaluation"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "automatically generate quizzes using text embedding"] <- "asian12017"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "rebial un juego de preguntas generadas a partir de la dbpedia"] <- "nf"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "automatic generation of questions from product manual sentences"] <- "asian2018"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "an interactive question raising system for recalling personal photos"] <- "wu2017"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "active learning method through question generation question and answer"] <- "nf"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "lod based semantically enhanced open learning space raises engagement for historical deep consideration"] <- "nf"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "a novel approach to qenerate mcqs from domain ontology considering dl semantics and open world assumption"] <- "vinu2015novel"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "building an agent for factual question generation task"] <- "nf"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "factors of difficulty in german language proficiency tests"] <- "nf"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "online test system to reduce teachers' workload for item and test preparation"] <- "aggrey2017online"
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "evaluating human and automated generation of distractors for diagnostic multiple choice cloze questions to assess children's reading comprehension"] <- "huang2015evaluating"
+
+
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "automatic generation of english reference question by utilising nonerestrictive relative clause"] <- "satria2017automatic"
+
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "generating indonesian question automatically based on bloom's taxonomy using template based method"] <- "kusuma2018generating"
+
+file_add_id$BIBTEXKEY[file_add_id$relv_title == "neural generation of diverse questions using answer focus"] <- "harrison2018neural"
+
+file_add_id$BIBTEXKEY[file_add_id$title == "automatic generation of english reference question by utilising nonerestrictive relative clause"] <- "satria2017automatic"
+
+file_add_id$BIBTEXKEY[file_add_id$title == "the art of deep connection towards natural and pragmatic n interactions"] <- "ray2017art"
+
+return(file_add_id)
+}
+
+in_incl <- function(file_with_id){
+common_inc <- as.data.frame(intersect(file_with_id$BIBTEXKEY, included_no_dupl$id), stringsAsFactors=FALSE)
+return(common_inc)
+}
+
+in_excl <- function(file_with_id){
+common_inc <- as.data.frame(intersect(file_with_id$BIBTEXKEY, excluded$id), stringsAsFactors=FALSE)
+return(common_inc)
+}
+
+in_all <- function(file_with_id){
+common_all <- as.data.frame(intersect(file_with_id$BIBTEXKEY, all$id), stringsAsFactors=FALSE)
+return(common_inc)
+}
+
+not_in_all <-  function(file_with_id){
+dif_inc <- as.data.frame(setdiff(file_with_id$BIBTEXKEY,all$id), stringsAsFactors=FALSE) 
+return(dif_inc)
+}
+  
+not_in_incl <- function(file_with_id){
+dif_inc <- as.data.frame(setdiff(file_with_id$BIBTEXKEY,included_no_dupl$id), stringsAsFactors=FALSE) 
+return(dif_inc)
+}
+
+not_in_excl <- function(file_with_id){
+dif_inc <- as.data.frame(setdiff(file_with_id$BIBTEXKEY,excluded$id), stringsAsFactors=FALSE) 
+return(dif_inc)
+}
+
+count_question_format <- function(review){
+x <- 
+  review %>%
+  dplyr::group_by(question_format) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+}
+
+count_input_question_format <- function(review){
+x <- 
+  review %>%
+  dplyr::group_by(input, question_format) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+}
+
+count_method_question_format <- function(review){
+x <- 
+  review %>%
+  dplyr::group_by(method, question_format) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+}
+
+count_response_format <- function(review){
+x <- 
+review %>%
+  dplyr::group_by(response_format) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+}
+
+count_input <- function(review){
+x <- 
+review %>%
+  dplyr::group_by(input) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+}
+
+count_input2 <- function(review){
+x <- 
+review %>%
+  dplyr::group_by(input2) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+}
+
+add_percent <- function(df){
+df <- df %>% mutate(percentage = (df$n / sum(df$n) * 100))
+df <- df %>% mutate(string_per = paste(as.character(round(percentage, 1)),'%',sep=''))
+#df <- df %>% mutate(string_n = paste(' (',as.character(n),')',sep=''))
+df <- df %>% mutate(string_n = as.character(n))
+return(df)
+}
+
+count_input_domain <- function(review){
+# cannot see relation between input and domain
+x <- 
+review %>%
+  dplyr::group_by(input, domain) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+
+}
+
+count_input_response_format <- function(review){
+review$response_format <- tolower(review$response_format)
+x <- 
+review %>%
+  dplyr::group_by(input,response_format) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+
+}
+
+count_input_response_format_domain <- function(review){
+review$response_format <- tolower(review$response_format)
+x <- 
+  review %>%
+  dplyr::group_by(input,response_format,domain) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+
+}
+
+count_input_response_format_domain_input2 <- function(review){
+x <- 
+  review %>%
+  dplyr::group_by(input,response_format,domain,input2) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+
+}
+
+count_input_response_format_input2 <- function(review){
+x <- 
+  review %>%
+  dplyr::group_by(input,input2,response_format) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+
+}
+
+count_method <- function(review){
+x <- 
+review %>%
+  dplyr::group_by(method) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+}
+
+count_method2 <- function(review){
+x <- 
+review %>%
+  dplyr::group_by(method2) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+}
+
+count_method_input <- function(review){
+x <- 
+review %>%
+  dplyr::group_by(method, input) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+}
+
+count_purpose <- function(review){
+x <- 
+review %>%
+  dplyr::group_by(purpose) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+}
+
+count_domain <- function(review){
+x <- 
+review %>%
+  dplyr::group_by(domain) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+}
+
+count_evaluation <- function(review){
+x <-
+  review %>%
+  dplyr::group_by(evaluation) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+return(x)
+}
+
+count_year <- function(review){
+x <-
+  review %>%
+  dplyr::group_by(YEAR) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(YEAR))
+return(x)
+}
+
+```
+
+```{r global_variables}
+bib_ref_f <- paste(dir,"ref.bib",sep="")
+bib_ref <- bib2df(bib_ref_f, separate_names = TRUE)
+bib_ref_names <- bib_ref %>% dplyr::select(BIBTEXKEY, TITLE)
+bib_ref_names <- clean(bib_ref_names)
+bib_ref_auth <- bib2df(bib_ref_f, separate_names = FALSE)
+
+alsubait_bib_ref_f <- paste(dir,"alsubait_ref.bib",sep="")
+alsubait_bib_ref <- bib2df(alsubait_bib_ref_f, separate_names = TRUE)
+alsubait_bib_ref <- clean(alsubait_bib_ref)
+  
+all_f <- paste(dir,"all.csv",sep="")
+all <- read.csv(all_f, header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+all <- clean(all)
+
+included <- all %>% filter(all$included == "yes")
+included_no_dupl <- included %>% distinct(id, .keep_all = TRUE)
+#included_no_dupl <- clean(included_no_dupl)
+
+included_full_info <- merge(included, bib_ref, by.x = "id", by.y = "BIBTEXKEY")
+included_full_info$YEAR[included_full_info$id == "adithya2017web"] <- 2017
+included_full_info <- clean(included_full_info)
+
+excluded <- all %>% filter(all$included == "no")
+excluded <- clean(excluded)
+
+kurdi_sys_f <- paste(dir,"data_extraction (this one).csv",sep="")
+kurdi_sys <- read.csv(kurdi_sys_f, header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+
+kurdi_sys_full_info <- merge(kurdi_sys, bib_ref, by.x = "id", by.y = "BIBTEXKEY")
+kurdi_sys_full_info <- kurdi_sys_full_info %>% select(id,CATEGORY)
+
+alsubait_sys_f <- paste(dir,"alsubait_sys.csv",sep="")
+alsubait_sys <- read.csv(alsubait_sys_f, header=TRUE, sep=",", fileEncoding="UTF-8-BOM") 
+alsubait_sys <- alsubait_sys %>% filter(source != "Redundant")
+alsubait_sys <- alsubait_sys  %>% mutate_all(funs(sub(",", ";",.)))
+```
+
+# Section "Quality assessment"
+inter-rater reliability on quality assessment
+
+```{r quality, echo=FALSE}
+
+# determine sample size
+# ref: https://www.researchgate.net/post/How_to_determine_sample_size_when_using_kappa_stats_to_examine_test_retest_of_a_questionnaire
+N.cohen.kappa(0.5, 0.5, 0.20, 0.61)
+
+# check agreement
+quality_by_leo <- read.csv(file = paste(dir,"quality_leo.csv",sep=""), header=T, sep=",", stringsAsFactors=FALSE)
+quality_by_leo <- quality_by_leo %>% filter(Section != "")
+
+quality_by_ghader <- read.csv(file = paste(dir,"quality_ghader.csv",sep=""), header=T, sep=",", stringsAsFactors=FALSE)
+quality_by_ghader <- quality_by_ghader %>% filter(Section != "")
+
+q1 <-cbind(quality_by_leo$Q1, quality_by_ghader$Q1)
+q2 <-cbind(quality_by_leo$Q2, quality_by_ghader$Q2)
+q3 <-cbind(quality_by_leo$Q3, quality_by_ghader$Q3)
+q4 <-cbind(quality_by_leo$Q4, quality_by_ghader$Q4)
+q5 <-cbind(quality_by_leo$Q5, quality_by_ghader$Q5)
+q6_1 <-cbind(quality_by_leo$Q6..sample.size., quality_by_ghader$Q6..sample.size.)
+q6_2 <-cbind(quality_by_leo$Q6..sample.size., quality_by_ghader$Q6..sample.size.)
+q7 <-cbind(quality_by_leo$Q7, quality_by_ghader$Q7)
+q8 <-cbind(quality_by_leo$Q8, quality_by_ghader$Q8)
+q9 <-cbind(quality_by_leo$Q9, quality_by_ghader$Q9)
+
+agreement <- rbind(
+c("Q1", agree(q1, tolerance=0), kappa2(q1)),
+c("Q2", agree(q2, tolerance=0), kappa2(q2)),
+c("Q3", agree(q3, tolerance=0), kappa2(q3)),
+c("Q4", agree(q4, tolerance=0), kappa2(q4)),
+c("Q5", agree(q5, tolerance=0), kappa2(q5)),
+c("Q6_1", agree(q6_1, tolerance=0), kappa2(q6_1)),
+c("Q6_1", agree(q6_2, tolerance=0), kappa2(q6_1)),
+c("Q7", agree(q7, tolerance=0), kappa2(q7)),
+c("Q8", agree(q8, tolerance=0), kappa2(q8)),
+c("Q9", agree(q9, tolerance=0), kappa2(q9)))
+```
+
+# Section "Search and screening results"
+## contrbution of main search
+### based on abstract
+```{r main_search}
+ieee_inc_f <- paste(dir,"ieee_incl.csv",sep="")
+sc_inc_f <- paste(dir,"ScienceDirect_incl.csv",sep="")
+inspec_inc_f <- paste(dir,"inspec_incl.csv",sep="")
+acm_inc_f <- paste(dir,"acm_incl.csv",sep="")
+eric_inc_f <- paste(dir,"eric_incl.csv",sep="")
+aied_inc_f <- paste(dir,"aied_incl.csv",sep="")
+
+ieee_inc <- read.csv(ieee_inc_f, header=FALSE, sep=",", fileEncoding="UTF-8-BOM")
+ieee_inc <- clean(ieee_inc)
+nrow(ieee_inc)
+
+sc_inc <- read.csv(sc_inc_f, header=FALSE, sep=",", fileEncoding="UTF-8-BOM")
+sc_inc <- clean(sc_inc)
+nrow(sc_inc)
+
+inspec_inc <- read.csv(inspec_inc_f, header=FALSE, sep=",", fileEncoding="UTF-8-BOM")
+inspec_inc <- clean(inspec_inc)
+nrow(inspec_inc)
+
+acm_inc <- read.csv(acm_inc_f, header=FALSE, sep=",", fileEncoding="UTF-8-BOM")
+acm_inc <- clean(acm_inc)
+nrow(acm_inc)
+
+eric_inc <- read.csv(eric_inc_f, header=FALSE, sep=",", fileEncoding="UTF-8-BOM")
+eric_inc <- clean(eric_inc)
+nrow(eric_inc)
+
+aied_inc <- read.csv(aied_inc_f, header=FALSE, sep=",", fileEncoding="UTF-8-BOM")
+nrow(aied_inc)
+
+# contribution of main sources (based on abstract)
+nrow(ieee_inc) + nrow(sc_inc) + nrow(inspec_inc) + nrow(acm_inc) + nrow(eric_inc) + nrow(aied_inc)
+
+# without duplicates
+main_included_abstract <- rbind.fill(ieee_inc,sc_inc,inspec_inc,acm_inc,eric_inc,aied_inc)
+colnames(main_included_abstract) <- c("title","V2", "V3")
+main_included_abstract_no_dup <- main_included_abstract %>% distinct(title, .keep_all = TRUE)
+nrow(main_included_abstract_no_dup)
+
+# no of duplicates 
+dup <- main_included_abstract[duplicated(main_included_abstract$title),]
+
+# included based on full text
+colnames(main_included_abstract_no_dup) <- c("BIBTEXKEY","V1", "V2")
+final_set <- in_incl(main_included_abstract_no_dup)
+```
+
+### based on full text 
+requirement: code chunk "main_search"
+
+```{r full_text}
+# contribution of main sources (based on full text)
+ieee_inc_round2 <- ieee_inc %>% select(V1)
+colnames(ieee_inc_round2) <- c("BIBTEXKEY")
+ieee_inc_round2 <- in_incl(ieee_inc_round2)
+nrow(ieee_inc_round2)
+
+sc_inc_round2 <- sc_inc %>% select(V1)
+colnames(sc_inc_round2) <- c("BIBTEXKEY")
+sc_inc_round2 <- in_incl(sc_inc_round2)
+nrow(sc_inc_round2)
+
+inspec_inc_round2 <- inspec_inc %>% select(V1)
+colnames(inspec_inc_round2) <- c("BIBTEXKEY")
+inspec_inc_round2 <- in_incl(inspec_inc_round2)
+nrow(inspec_inc_round2)
+
+acm_inc_round2 <- acm_inc %>% select(V1)
+colnames(acm_inc_round2) <- c("BIBTEXKEY")
+acm_inc_round2 <- in_incl(acm_inc_round2)
+nrow(acm_inc_round2)
+
+eric_inc_round2 <- eric_inc %>% select(V1)
+colnames(eric_inc_round2) <- c("BIBTEXKEY")
+eric_inc_round2 <- in_incl(eric_inc_round2)
+nrow(eric_inc_round2)
+
+aied_inc_round2 <- aied_inc %>% select(V1)
+colnames(aied_inc_round2) <- c("BIBTEXKEY")
+aied_inc_round2 <- in_incl(aied_inc_round2)
+nrow(aied_inc_round2)
+
+# contribution of main sources (based on full text)
+main_included_round2 <- rbind.fill(ieee_inc_round2,sc_inc_round2,inspec_inc_round2,acm_inc_round2,eric_inc_round2,aied_inc_round2)
+colnames(main_included_round2) <- c("id")
+
+main_included_round2_no_dup <- main_included_round2 %>% distinct(id, .keep_all = TRUE)
+main_included_round2_no_dup <- clean(main_included_round2_no_dup)
+nrow(main_included_round2_no_dup)
+
+main_included_round2_no_dup <- merge(main_included_round2_no_dup, bib_ref, by.x = "id", by.y = "BIBTEXKEY")
+
+# no of duplicates
+dup <- main_included_round2[duplicated(main_included_round2$id),]
+length(dup)
+```
+
+# results of search update
+did it manully for eric, sd and acm
+
+```{r search_update}
+acm_2018_2019_f <- paste(dir,"replicated_search7-3-2019/inspec_2018_2019.csv",sep="")
+ieee_2018_2019_f <- paste(dir,"replicated_search7-3-2019/ieee2018_2019.csv",sep="")
+eric_2018_2019_f <- paste(dir,"replicated_search7-3-2019/eric_2019.csv",sep="")
+inspec_2018_2019_f <- paste(dir,"replicated_search7-3-2019/inspec_2018_2019.csv",sep="")
+
+inspec_new <- read.csv(inspec_2018_2019_f, header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+inspec_new$Title <- tolower(inspec_new$Title)
+inspec$title <- tolower(inspec$title)
+inspec_dif <- as.data.frame(setdiff(inspec_new$Title, inspec$title), stringsAsFactors=FALSE) 
+# write.table(inspec_dif, file = paste(dir, "inspec_dif", ".csv", sep=""), col.names = T, row.names=F, sep = ",")
+
+ieee_2018_2019 <- read.csv(ieee_2018_2019_f, header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+ieee_2018_2019$Document.Title <- tolower(ieee_2018_2019$Document.Title)
+ieee_dif <- as.data.frame(setdiff(ieee_2018_2019$Document.Title, ieee$title), stringsAsFactors=FALSE) 
+# write.table(ieee_dif, file = paste(dir, "ieee_dif", ".csv", sep=""), col.names = T, row.names=F, sep = ",")
+```
+
+## Snowballing
+
+```{r snowballing}
+# Number of relevant titiles from snowballing
+snowballing_f <- paste(dir,"snowballing.csv",sep="")
+snowballing <- read.csv(snowballing_f, header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+snowballing <- clean(snowballing)
+
+# without duplicates (note: number - 1 because there a row for none)
+snowballing_no_dup <- snowballing %>% distinct(relv_title, .keep_all = TRUE)
+nrow(snowballing_no_dup)
+
+# snowbaling in included 
+snowballing_included_common <- as.data.frame(intersect(snowballing_no_dup$relv_title, included_full_info$TITLE), stringsAsFactors=FALSE)
+colnames(snowballing_included_common) <- c("title")
+
+# how many are already captured by main search
+snowballing_main_common <- as.data.frame(intersect(snowballing_included_common$title, main_included_round2_no_dup$TITLE), stringsAsFactors=FALSE)
+colnames(snowballing_main_common) <- c("title")
+
+# how many are only in snowballing result (i.e. not captured by main search)
+snowball_main_dif <- as.data.frame(setdiff(snowballing_included_common$title,main_included_round2_no_dup$TITLE), stringsAsFactors=FALSE) 
+colnames(snowball_main_dif) <- c("title")
+
+# error check
+snowball_result_with_id <- add_ids(snowballing_no_dup, "relv_title")
+snowball_result_with_id <- add_na_id(snowball_result_with_id) 
+snowball_result_with_id <- snowball_result_with_id %>% filter (!is.na(BIBTEXKEY))
+
+# you need to check this
+no_id <-
+ snowball_result_with_id %>%
+ filter(is.na(BIBTEXKEY))
+nrow(no_id)
+
+# to check that we did snowballing for all papers
+snowballing_with_id <- snowballing %>% distinct(title, .keep_all = TRUE)
+snowballing_with_id <-add_ids(snowballing_with_id, "title")
+snowballing_with_id <-add_na_id(snowballing_with_id)
+# error check
+snowballing_no_id <- catch_na_ids(snowballing_with_id)
+
+# check that all snowbaliing are in all
+snowballing_dif_all<- not_in_all(snowballing_with_id)
+
+#check that you did snowballing for all results
+all_dif_snowballing <- as.data.frame(setdiff(all$id,snowballing_with_id$BIBTEXKEY), stringsAsFactors=FALSE) 
+
+# How many from snowball result are in included and excluded
+# have you done inclusion exclusion for all snowball
+snowballing_result_common_excl <- in_excl(snowball_result_with_id)
+nrow(snowballing_result_common_excl)
+
+snowballing_result_dif_all <- not_in_all(snowball_result_with_id)
+nrow(snowballing_result_dif_all)
+```
+
+## google citation
+
+```{r google}
+google_f <- paste(dir,"google citation.csv",sep="")
+google <- read.csv(google_f, header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+google <- clean(google)
+
+# how many identified using google citation
+google_no_duplic <- google %>% distinct(relv_title, .keep_all = TRUE)
+nrow(google_no_duplic)
+
+# google results in included (unique to google + shared with main search)
+google_included_common <- as.data.frame(intersect(google_no_duplic$relv_title, included_full_info$TITLE), stringsAsFactors=FALSE)
+colnames(google_included_common) <- c("title")
+nrow(google_included_common)
+
+# How many are shared with main search results
+google_main_common <- as.data.frame(intersect(google_included_common$title, main_included_round2_no_dup$TITLE), stringsAsFactors=FALSE)
+colnames(google_main_common) <- c("title")
+
+# How many are in only in google (i.e. not captured by main search)
+google_main_dif <- as.data.frame(setdiff(google_included_common$title,main_included_round2_no_dup$TITLE), stringsAsFactors=FALSE)
+colnames(google_main_dif) <- c("title")
+
+#check that you did google for all included and excluded
+google_with_id <-add_ids(google_no_duplic, "title")
+# quality check
+google_no_id <- catch_na_ids(google_with_id)
+
+google_common_excl <- in_excl(google_with_id)
+google_dif_all <- not_in_all(google_with_id)
+all_dif_google <- as.data.frame(setdiff(all$id,google_with_id$BIBTEXKEY), stringsAsFactors=FALSE) 
+
+# quality check
+google_result_with_id <- add_ids(google_result, "relv_title")
+google_result_with_id <- add_na_id(google_result_with_id) 
+google_result_with_id <- google_result_with_id %>% filter (!is.na(BIBTEXKEY))
+no_id <-
+ google_result_with_id %>%
+ filter(is.na(BIBTEXKEY))
+
+# sum(google1$cited_by)
+# sum(google1$relv)
+
+# have you done inclusion exclusion for all google
+google_result_dif_all <- not_in_all(google_result_with_id)
+nrow(google_result_dif_all)
+
+# How many from google result are in excluded
+google_result_common_excl <- in_excl(google_result_with_id)
+nrow(google_result_common_excl)
+```
+
+# Overlap between google and snowball results
+# How many are captured in the intial result and how many are new
+
+```{r sg_combined}
+google_snowball <- as.data.frame(intersect(google_main_dif$title, snowball_main_dif$title), stringsAsFactors=FALSE)
+google_snowball <- as.data.frame(intersect(snowball_main_dif$title,google_main_dif$title), stringsAsFactors=FALSE)
+
+common_sg <-  rbind(google_main_dif,snowball_main_dif)
+# number of duplicates
+nrow(common_sg)
+common_sg <- remove_duplicates(common_sg)
+nrow(common_sg)
+
+common_sg <- as.data.frame(intersect(google_result_with_id$BIBTEXKEY, snowball_result_with_id$BIBTEXKEY), stringsAsFactors=FALSE)
+colnames(common_sg) <- c("id")
+common_sg <- common_sg %>% filter(!is.na(id),id != "nf")
+
+# number of duplicates
+nrow(common_sg)
+
+common_sg <- rbind(google_result_with_id,snowball_result_with_id)
+# before duplicates
+nrow(common_sg)
+colnames(common_sg) <- c("title", "n", "BIBTEXKEY")
+common_sg <- remove_duplicates(common_sg)
+common_sg <- add_ids(common_sg, "title")
+common_sg <- add_na_id(common_sg) 
+# after duplicates
+nrow(common_sg)
+
+# overlap between snowball-google and included based on abstract
+common_sg_initial <- as.data.frame(intersect(common_sg$BIBTEXKEY, main_included_abstract$title), stringsAsFactors=FALSE)
+nrow(common_sg_initial)
+
+# overlap between snowball and included based on full text
+common_intial_sg <- as.data.frame(intersect(common_intial_incl$`intersect(main_included_abstract$title, included_no_dupl$id)`, common_sg$BIBTEXKEY), stringsAsFactors=FALSE)  
+nrow(common_intial_sg)
+```
+
+# exclusion
+
+```{r exclusion}
+reasons_for_excl <- excluded %>% dplyr::group_by(reason) %>% dplyr::summarize(n = n())
+relevant_but_not_included <- excluded %>% filter(reason == "no sufficient description of qg")
+```
+
+
+# comparsion with review by Ch and Saha
+
+```{r compare_with_other_reviews}
+sim_sys_bib_ref_f <- paste(dir,"simiar_sys.bib",sep="")
+sim_sys_bib_ref <- bib2df(sim_sys_bib_ref_f, separate_names = TRUE)
+
+common_exc <- as.data.frame(intersect(sim_sys_bib_ref$BIBTEXKEY, excluded$id), stringsAsFactors=FALSE)
+common_inc_by_id <- as.data.frame(intersect(sim_sys_bib_ref$BIBTEXKEY, included_no_dupl$id), stringsAsFactors=FALSE)
+
+sim_sys_bib_ref <- clean(sim_sys_bib_ref)
+common_inc_by_title <- as.data.frame(intersect(sim_sys_bib_ref$TITLE, included_full_info$TITLE), stringsAsFactors=FALSE)
+
+# not in our review
+dif_inc <- as.data.frame(setdiff(sim_sys_bib_ref$BIBTEXKEY,bib_ref$BIBTEXKEY), stringsAsFactors=FALSE) 
+```
+
+# check that you did data extraction for all included studies
+
+```{r quality_check}
+kurdi_sys_id <- separate_rows(kurdi_sys,id,sep=";\\s+")
+
+# not in included but in extracted (to remove from data extraction)
+remove1 <- as.data.frame(setdiff(kurdi_sys_id$id, included_no_dupl$id), stringsAsFactors=FALSE) 
+
+# Is there any excluded in data extraction (to remove from data extraction)
+remove2 <- as.data.frame(intersect(kurdi_sys$id, excluded$id), stringsAsFactors=FALSE)
+
+# not in extracted but in included (to add to data extraction)
+add <- as.data.frame(setdiff(included_no_dupl$id,kurdi_sys_id$id), stringsAsFactors=FALSE)
+```
+
+
+## Section "Rate of publications"
+
+```{r publication_rate}
+included_year <- included_full_info %>% dplyr::select(id,YEAR)  %>% filter(!is.na(YEAR))
+#included_year$source <- "Kurdi's review"
+alsubait_sys_year <- alsubait_sys %>% dplyr::select(id,YEAR)
+#old_sys_year$source <- "Alsubait's review"
+
+alsubait_missing_years <- data.frame("YEAR" = c(2001,2000,1998,1996,1995,1994,1993,1992,1990,1989,1988,1986,1985,1984,1982,1981,1980,1979,1978,1977,1974,1973,1972,1971), "n" = rep(c(0), each=24))
+
+# no of puplication per year (kurd's review)  
+included_full_info %>%
+  dplyr::group_by(YEAR) %>%
+  dplyr::summarize(n = n()) %>%
+  arrange(desc(YEAR))
+
+# no of puplication per year (both reviews) 
+year <- rbind(included_year, alsubait_sys_year)
+year <- year %>%
+  dplyr::group_by(YEAR) %>%
+  dplyr::summarize(n = n())
+
+year <- year %>% dplyr::filter(YEAR != "nd")
+year <- rbind(year, alsubait_missing_years)
+year <- add_percent(year)
+year$string_n[year$string_n == "0"] <- ""
+
+# Rate of publications plot
+
+ggplot(year, aes(YEAR, n)) +
+  geom_bar(stat="identity") +
+  geom_text( aes(label=string_n), vjust=-.5, hjust = .5, size=3) +
+  labs(x = "Year", y = "No. of publications") +
+  scale_x_discrete(labels=c("2019" = "19", "2018" = "18", "2018" = "18", "2017" = "17", "2016" = "16", "2015" = "15", "2014" = "14", "2013" = "13", "2012" = "12", "2011" = "11", "2010" = "10", "2009" = "09", "2008" = "08", "2007" = "07", "2006" = "06", "2005" = "05", "2004" = "04", "2003" = "03", "2002" = "02", "2001" = "01", "2000" = "00", "1999" = "99", "1998" = "98", "1997" = "97", "1996" = "96", "1995" = "95", "1994" = "94", "1993" = "93", "1992" = "92", "1991" = "91", "1990" = "90", "1989" = "89", "1988" = "88", "1987" = "87", "1986" = "86", "1985" = "85", "1984" = "84","1983" = "83", "1982" = "82", "1981" = "81", "1980" = "80", "1979" = "79", "1978" = "78", "1977" = "77", "1976" = "76", "1975" = "75", "1974" = "74", "1973" = "73", "1972" = "72", "1971" = "71", "1970" = "70"))
+
+included_full_info %>% 
+  select(YEAR, id) %>% 
+  unnest() %>% 
+  ggplot() + 
+  aes(x = YEAR, y = reorder(id, desc(YEAR))) + 
+  geom_point()
+```
+
+# Section "Types of papers and publication venues"
+
+```{r obj1}
+ref_to_validate <- included_full_info %>%  dplyr::select(id,X.NOTE)
+
+# What type of research
+included_full_info %>%
+  dplyr::group_by(CATEGORY) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+
+# What type of research in alsubait's review
+alsubait_bib_ref %>%
+  dplyr::group_by(CATEGORY) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+
+# number of conference papers 
+conf_in_alsubait <- alsubait_bib_ref %>%
+  filter(CATEGORY=="inproceedings") %>% select(BOOKTITLE)
+
+workshop_in_alsubait <- conf_in_alsubait %>% filter(str_detect(BOOKTITLE, "workshop"))
+symo_in_alsubait <- conf_in_alsubait %>% filter(str_detect(BOOKTITLE, "symposium"))
+
+conf_in_alsubait <- conf_in_alsubait %>% filter(!str_detect(BOOKTITLE, "workshop"))
+conf_in_alsubait <- conf_in_alsubait %>% filter(!str_detect(BOOKTITLE, "symposium"))
+
+# In kurdi
+conf_in_kurdi <- included_full_info %>%
+  filter(CATEGORY=="inproceedings") %>% select(BOOKTITLE)
+
+workshop_in_kurdi <- conf_in_kurdi %>% filter(str_detect(BOOKTITLE, "workshop"))
+symo_in_kurdi <- conf_in_kurdi %>% filter(str_detect(BOOKTITLE, "symposium"))
+
+conf_in_kurdi <- conf_in_kurdi %>% filter(!str_detect(BOOKTITLE, "workshop"))
+conf_in_kurdi <- conf_in_kurdi %>% filter(!str_detect(BOOKTITLE, "symposium"))
+
+nrow(conf_in_kurdi) + nrow(workshop_in_kurdi) + nrow(symo_in_kurdi)
+
+# top journals in both reviews
+
+x <- clean(alsubait_bib_ref) %>% dplyr::select(JOURNAL)
+y <- clean(included_full_info) %>% dplyr::select(JOURNAL)
+
+top_journal <- rbind(x,y) %>%
+  filter(!is.na(JOURNAL)) %>%
+  dplyr::group_by(JOURNAL) %>%
+  dplyr::summarize(n = n()) %>%
+  arrange(desc(n)) 
+
+journals_in_kurdi <-
+included_full_info %>%
+  dplyr::filter(!is.na(JOURNAL)) %>%
+  dplyr::group_by(JOURNAL) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n)) %>%
+  slice(1:5)
+
+journals_in_alsubait <-
+  alsubait_bib_ref %>%
+  dplyr::filter(!is.na(JOURNAL)) %>%
+  dplyr::group_by(JOURNAL) %>%
+  dplyr::summarize(n = n()) %>%
+  arrange(desc(n)) 
+
+# where reseacrh is published (confernces)?
+
+words = c("1st", "2nd", "3rd", "3ed", "4th","5th", "6th", "7th", "8th", "9th", "10th", "11th","12th","13th", "14th", "15th", "17th","22nd", "24th", "25th","26th","27th","28th","36th","49th", "50th",'52nd', "first", "third", "fourth","fifth","seventh","eighth i", "tenth","thirteenth","twenty","2008","2009","2010", "2011", "2012", "2013", "2014" ,"2015","2016","2017","2018", "2019", "the", "proceedings of", "csedu", "qg2010", "icalt", "hltnaacl 03", "ics")
+included_full_info$BOOKTITLE <- removeWords(included_full_info$BOOKTITLE,words)
+alsubait_bib_ref$BOOKTITLE <- removeWords(alsubait_bib_ref$BOOKTITLE,words)
+
+# in both reviews
+x <- clean(alsubait_bib_ref) %>% select(BOOKTITLE)
+y <- clean(included_full_info) %>% select(BOOKTITLE)
+top_conf <- rbind(x,y) %>%
+  filter(!is.na(BOOKTITLE)) %>%
+  dplyr::group_by(BOOKTITLE) %>%
+  dplyr::summarize(n = n()) %>%
+  arrange(desc(n))
+
+conf_in_kurdi <-
+  included_full_info %>%
+  dplyr::filter(!is.na(BOOKTITLE)) %>%
+  dplyr::group_by(BOOKTITLE) %>%
+  dplyr::summarize(n = n()) %>%
+  arrange(desc(n)) %>%
+  slice(1:5)
+
+conf_in_alsubait <-
+  alsubait_bib_ref %>%
+  dplyr::filter(!is.na(BOOKTITLE)) %>%
+  dplyr::group_by(BOOKTITLE) %>%
+  dplyr::summarize(n = n()) %>%
+  arrange(desc(n)) 
+
+```
+
+# Section "Research groups"
+
+```{r Research_groups}
+authors <- read.csv(file=paste(dir,"authors.csv",sep=""), header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+authors_in_alsubait <- read.csv(file=paste(dir,"authors_in_alsubait.csv",sep=""), header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+
+authors <- clean(authors)
+authors_in_alsubait <- clean(authors_in_alsubait)
+
+# Sanity check
+# not in authors but in included (to add to authors)
+dif <- as.data.frame(setdiff(included_no_dupl$id,authors$paper), stringsAsFactors=FALSE)
+# in authors but not in included (check included)
+dif <- as.data.frame(setdiff(authors$paper,included_no_dupl$id), stringsAsFactors=FALSE)
+
+# no of authors in kurdi's review
+authors_no_dup <-
+  authors %>%
+  dplyr::group_by(authors) %>%
+  dplyr::summarize(n = n())
+
+nrow(authors_no_dup)
+
+# no of authors in alsubait's review
+alsubait_auth <-
+  authors_in_alsubait %>%
+  dplyr::group_by(authors) %>%
+  dplyr::summarize(n = n())
+
+nrow(alsubait_auth)
+
+# no of common authors between review
+common_auth <- as.data.frame(intersect(alsubait_auth$authors, authors_no_dup$authors), stringsAsFactors=FALSE)
+nrow(common_auth)
+
+# no of authors in both reviews
+# authors with multiple papers
+authors_all <- rbind(authors,authors_in_alsubait)
+authors_all <-
+  authors_all %>%
+  dplyr::group_by(authors) %>%
+  dplyr::summarize(n = n())
+nrow(authors_all)
+
+authors_all <- authors_all[order(as.character(authors_all$authors)),]
+```
+
+# Section "Purpose of question generation"
+
+```{r purpose}
+p_old <-count_purpose(alsubait_sys)
+p_old$source <- "alsubait"
+
+kurdi_sys_purpose <- separate_rows(kurdi_sys,purpose,sep=";\\s+")
+p_new <-count_purpose(kurdi_sys_purpose)
+p_new$source <- "kurdi"
+
+p_both <- rbind(p_old, p_new)
+ggplot(p_both, aes(purpose, n))+
+  geom_bar(stat="identity") +
+  facet_grid(source ~.) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+```
+
+# Section "Generation methods"
+
+```{r method}
+m_old <-count_method(alsubait_sys)
+m_old$source <- "alsubait"
+
+m_new <-count_method(kurdi_sys)
+m_new$source <- "kurdi"
+m_both <- rbind(m_old, m_new)
+m_new <- separate_rows(m_new,method,sep=";\\s+")
+
+m_old <-count_method2(alsubait_sys)
+m_old$source <- "alsubait"
+m_new <-count_method2(kurdi_sys)
+m_new$source <- "kurdi"
+m_both <- rbind(m_old, m_new)
+m_new <- separate_rows(m_new,method2,sep=";\\s+")
+
+ggplot(m_both, aes(method, n))+
+geom_bar(stat="identity") +
+facet_grid(source ~.) +
+theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+
+#-------------------------------------------------------------------------------------
+# relation between methods and input
+
+mi_old <-count_method_input(alsubait_sys)
+mi_old$source <- "alsubait"
+mi_new <-count_method_input(kurdi_sys)
+mi_new$source <- "kurdi"
+mi_both <- rbind(mi_old, mi_new)
+
+ggplot(mi_both, aes(method, n, fill=input))+
+  geom_bar(stat="identity") +
+  facet_grid(source ~.) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+
+#-------------------------------------------------------------------------------------
+# relation between methods and question format
+
+mqf_old <-count_method_question_format(alsubait_sys)
+mqf_old$source <- "alsubait"
+mqf_old <- separate_rows(mqf_old,method,sep=";\\s+")
+
+mqf_new <-count_method_question_format(kurdi_sys)
+mqf_new$source <- "kurdi"
+mqf_new <- separate_rows(mqf_new,method,sep=";\\s+")
+
+mqf_both <- rbind(mqf_old, mqf_new)
+qf_both <- separate_rows(qf_both,question_format,sep=";\\s+")
+
+# Top in Alsubait's review
+top_in_alsubait <- mqf_old %>% group_by(method) %>%
+  summarize(n = n()) %>%
+  arrange(desc(n))
+
+# Top in Kurdi's review
+top_in_kurdi <- mqf_new %>% group_by(method) %>%
+  summarize(n = n()) %>%
+  arrange(desc(n))
+
+ggplot(mqf_both, aes(question_format, n, fill=method))+
+  geom_bar(stat="identity") +
+  facet_grid(source ~.) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+```
+
+# Section "Input"
+
+```{r input}
+i_old <-count_input(alsubait_sys)
+i_old$source <- "alsubait"
+
+i_new <-count_input(kurdi_sys)
+i_new$source <- "kurdi"
+
+i_new <-count_input2(kurdi_sys)
+i_new$source <- "kurdi"
+
+i_new$input[i_new$input=="question stem; question key; a distractor set to rank (in ranking mc)"] <- "stem, key, and a distractor set"
+i_new$input[i_new$input=="target word with its part of speech and a word sense; wordnet"] <- "target word with its POS and WS; WordNet"
+i_new$input[i_new$input=="text; question key"] <- "text and key"
+i_new$input[i_new$input=="question stem; question key"] <- "stem and key"
+
+i_new <- add_percent(i_new)
+i_old <- add_percent(i_old)
+i_both <- rbind(i_old, i_new)
+  
+ggplot(i_both, aes(input, n))+
+  geom_bar(stat="identity") +
+  facet_grid(source ~.) +
+ # geom_text( aes(label=string_per), vjust=-.25, hjust = 1, size=3) +
+ # geom_text( aes(label=string_n), vjust=-.25, hjust = 0, size=3) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+
+ggplot(i_both, aes(input, n, fill=source))+
+  geom_bar(stat="identity", position = "dodge") +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+
+#-------------------------------------------------------------------------------------
+# Relation between input and domain
+
+id_old <-count_input_domain(alsubait_sys)
+id_old$source <- "alsubait"
+
+id_new <-count_input_domain(kurdi_sys)
+id_new$source <- "kurdi"
+
+id_both <- rbind(id_old, id_new)
+
+ggplot(id_both, aes(domain, n, fill=input))+
+  geom_bar(stat="identity") +
+  facet_grid(source ~.) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+
+#-------------------------------------------------------------------------------------
+# Relation between input and response format
+
+irf_old <-count_input_response_format(alsubait_sys)
+irf_old$source <- "alsubait"
+
+irf_new <-count_input_response_format(kurdi_sys)
+irf_new$source <- "kurdi"
+
+irf_both <- rbind(irf_old, irf_new)
+ggplot(irf_both, aes(response_format, n, fill=input))+
+  geom_bar(stat="identity") +
+  facet_grid(source ~.) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+
+#-------------------------------------------------------------------------------------
+# Reltion between input and response format
+
+# rf_both <- separate_rows(rf_both,response_format,sep=";\\s+")
+irfd_old <-count_input_response_format_domain(alsubait_sys)
+irfd_old$source <- "alsubait"
+irfd_new <-count_input_response_format_domain(kurdi_sys)
+irfd_new$source <- "kurdi"
+irfd_both <- rbind(irfd_old,irfd_new)
+
+#-------------------------------------------------------------------------------------
+# what additional sources are required for genrating generic question from text
+# what additional sources are required for genrating mcq from text
+
+irfdi_old <-count_input_response_format_domain_input2(alsubait_sys)
+irfdi_old$source <- "alsubait"
+
+irfdi_new <-count_input_response_format_domain_input2(kurdi_sys)
+irfdi_new$source <- "kurdi"
+
+irfdi_both <- rbind(irfdi_old, irfdi_new)
+
+# input domain response format question type
+# what type of questions are generic mcqs from text
+
+x <-  kurdi_sys %>%
+  group_by(input,response_format,domain,question_format) %>%
+  summarize(n = n()) %>%
+  arrange(desc(n))
+
+#-------------------------------------------------------------------------------------
+# input, additional input and response format
+
+irfi_old <-count_input_response_format_input2(alsubait_sys)
+irfi_old$source <- "alsubait"
+irfi_new <-count_input_response_format_input2(kurdi_sys)
+irfi_new$source <- "kurdi"
+irfi_both <- rbind(irfi_old, irfi_new)
+```
+
+# Section "Domain, question types and languages"
+
+```{r domain}
+domain_in_alsubait <-count_domain(alsubait_sys)
+domain_in_alsubait$source <- "alsubait"
+
+domain_in_kurdi <-count_domain(kurdi_sys)
+domain_in_kurdi$source <- "kurdi"
+
+d_both <- rbind(domain_in_alsubait, domain_in_kurdi)
+ggplot(d_both, aes(domain, n)) +
+  geom_bar(stat="identity") +
+  facet_grid(source ~.) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+
+domain_n_type <-  kurdi_sys %>%
+  dplyr::group_by(domain,question_format) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+```
+
+# Section "Domain, question types and language"
+
+```{r types_language}
+
+# response format
+rf_old <-count_response_format(alsubait_sys)
+rf_old$source <- "alsubait"
+
+rf_new <-count_response_format(kurdi_sys)
+rf_new$source <- "kurdi"
+
+rf_both <- rbind(rf_old, rf_new)
+rf_both <- separate_rows(rf_both,response_format,sep=";\\s+")
+
+ggplot(rf_both, aes(response_format, n))+
+  geom_bar(stat="identity") +
+  facet_grid(source ~.) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+
+# language
+
+language <-  kurdi_sys %>%
+  dplyr::group_by(language) %>%
+  dplyr::summarize(n = n()) %>%
+  dplyr::arrange(desc(n))
+```
+
+# Section "Domain, question types and language"
+
+```{r question_types}
+qf_old <- count_question_format(alsubait_sys)
+qf_old$source <- "alsubait"
+qf_old <- separate_rows(qf_old,question_format,sep=";\\s+")
+
+qf_new <- count_question_format(kurdi_sys)
+qf_new$source <- "kurdi"
+qf_new <- separate_rows(qf_new,question_format,sep=";\\s+")
+
+qf_both <- rbind(qf_old, qf_new)
+
+top_in_both <- qf_both %>% group_by(source,question_format) %>%
+  summarize(n = n()) %>%
+  arrange(desc(n))
+
+top_in_alsubait <- qf_old %>% group_by(source,question_format) %>%
+  summarize(n = n()) %>%
+  arrange(desc(n))
+
+top_in_kurdi <- qf_new %>% group_by(source,question_format) %>%
+  summarize(n = n()) %>%
+  arrange(desc(n))
+
+# done manually
+# overlap
+# new type of questions 
+# discontinued question 
+
+# ggplot(qf_both, aes(question_format, n))+
+#  geom_bar(stat="identity") +
+#  facet_grid(source ~.) +
+#  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+
+# is some input more appropriate for some questions
+
+iqf_old <-count_input_question_format(alsubait_sys)
+iqf_old$source <- "thani"
+iqf_new <-count_input_question_format(kurdi_sys)
+iqf_new$source <- "me"
+iqf_both <- rbind(iqf_old, iqf_new)
+iqf_both <- separate_rows(iqf_both,question_format,sep=";\\s+")
+
+x <- iqf_both %>% group_by(source,input,question_format) %>%
+  summarize(n = n())
+
+# ggplot(iqf_both, aes(question_format, n, fill=input))+
+#  geom_bar(stat="identity") +
+#  facet_grid(source ~.) +
+#  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+```
+
+# Section "Difficulty"
+```{r difficulty}
+difficulty <-  kurdi_sys %>%
+  dplyr::filter(kurdi_sys$difficulty. == "yes")
+
+domain_n_dif <- difficulty %>% 
+  dplyr::group_by(domain) %>%
+  dplyr::summarize(n = n())
+```
+
+# Section "Types of evaluation"
+
+```{r evaluation}
+e_old <-count_evaluation(alsubait_sys)
+e_old$source <- "alsubait"
+
+kurdi_sys_eval <- separate_rows(kurdi_sys,evaluation,sep=";\\s+")
+e_new <-count_evaluation(kurdi_sys_eval)
+e_new$source <- "kurdi"
+
+e_both <- rbind(e_old, e_new)
+ggplot(e_both, aes(evaluation, n)) +
+  geom_bar(stat="identity") +
+  facet_grid(source ~.) +
+  theme(axis.text.x=element_text(angle=90,hjust=1,vjust=.5,colour='gray50'))
+```
+
+# Section "Performance of generation approaches and gold standard performance""
+This was not possible due to heterogeneity of reporting
+
+```{r performance_comparsion}
+# filter by domain
+# filter by metric
+# compare results
+```
+
+# Other
+```{r incl_excl}
+included_title <- included_full_info %>% select(id,TITLE)
+write.csv(included_title,'included_title.csv')
+```
+
+# Section "Screening"
+interrater agreement on inclusion/exclusion
+
+```{r incl_excl}
+included_full_info_copy <- clean(included_full_info)
+
+ieee_inclusion <- read.csv(file = paste(dir,"ieee_salam.csv",sep=""), header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+ieee_inclusion <- clean(ieee_inclusion)
+ieee_inclusion$reviewer2[ieee_inclusion$Title %in% included_full_info_copy$TITLE] <- "yes"
+ieee_inclusion$reviewer2[is.na(ieee_inclusion$reviewer2)] <- "no"
+ieee_inclusion <- ieee_inclusion %>% select(Title, Relevant, reviewer2)
+
+sd_inclusion <- read.csv(file = paste(dir,"sd_salam.csv",sep=""), header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+sd_inclusion <- clean(sd_inclusion)
+sd_inclusion$reviewer2[sd_inclusion$Title %in% included_full_info_copy$TITLE] <- "yes"
+sd_inclusion$reviewer2[is.na(sd_inclusion$reviewer2)] <- "no"
+sd_inclusion <- sd_inclusion %>% select(Title, Relevant, reviewer2)
+
+eric_inclusion <- read.csv(file = paste(dir,"eric_salam.csv",sep=""), header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+eric_inclusion <- clean(eric_inclusion)
+eric_inclusion$reviewer2[eric_inclusion$Title %in% included_full_info_copy$TITLE] <- "yes"
+eric_inclusion$reviewer2[is.na(eric_inclusion$reviewer2)] <- "no"
+eric_inclusion <- eric_inclusion %>% select(Title, Relevant, reviewer2)
+
+inspec_inclusion <- read.csv(file = paste(dir,"inspec_salam.csv",sep=""), header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+inspec_inclusion <- clean(inspec_inclusion)
+inspec_inclusion$reviewer2[inspec_inclusion$Title %in% included_full_info_copy$TITLE] <- "yes"
+inspec_inclusion$reviewer2[is.na(inspec_inclusion$reviewer2)] <- "no"
+inspec_inclusion <- inspec_inclusion %>% select(Title, Relevant, reviewer2)
+
+acm_inclusion <- read.csv(file = paste(dir,"acm_salam.csv",sep=""), header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+acm_inclusion <- clean(acm_inclusion)
+acm_inclusion$reviewer2[acm_inclusion$Title %in% included_full_info_copy$TITLE] <- "yes"
+acm_inclusion$reviewer2[is.na(acm_inclusion$reviewer2)] <- "no"
+acm_inclusion <- acm_inclusion %>% select(Title, Relevant, reviewer2)
+
+aied_inclusion <- read.csv(file = paste(dir,"aied_salam.csv",sep=""), header=TRUE, sep=",", fileEncoding="UTF-8-BOM")
+aied_inclusion <- clean(aied_inclusion)
+aied_inclusion$reviewer2[aied_inclusion$Title %in% included_full_info_copy$TITLE] <- "yes"
+aied_inclusion$reviewer2[is.na(aied_inclusion$reviewer2)] <- "no"
+aied_inclusion <- aied_inclusion %>% select(Title, Relevant, reviewer2)
+
+agreement_on_ieee <-cbind(ieee_inclusion$Relevant, ieee_inclusion$reviewer2)
+agreement_on_sd <-cbind(sd_inclusion$Relevant, sd_inclusion$reviewer2)
+agreement_on_inspec <-cbind(inspec_inclusion$Relevant, inspec_inclusion$reviewer2)
+agreement_on_eric <-cbind(eric_inclusion$Relevant, eric_inclusion$reviewer2)
+
+agreement_on_aied <-cbind(aied_inclusion$Relevant, aied_inclusion$reviewer2)
+agreement_on_acm <-cbind(acm_inclusion$Relevant, acm_inclusion$reviewer2)
+
+agreement <- rbind(
+c("IEEE", agree(agreement_on_ieee, tolerance=0), kappa2(agreement_on_ieee)),
+c("SD", agree(agreement_on_sd, tolerance=0), kappa2(agreement_on_sd)),
+c("INSPEC", agree(agreement_on_inspec, tolerance=0), kappa2(agreement_on_inspec)),
+c("ERIC", agree(agreement_on_eric, tolerance=0), kappa2(agreement_on_eric)),
+c("ACM", agree(agreement_on_acm, tolerance=0), kappa2(agreement_on_acm)),
+c("AIED", agree(agreement_on_aied, tolerance=0), kappa2(agreement_on_aied))
+)
+```
+
+  
